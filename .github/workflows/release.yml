@@ -1,0 +1,104 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+          - os: ubuntu-latest
+            platform: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install JUCE Linux dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libjack-jackd2-dev \
+            libcurl4-openssl-dev \
+            libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+            libxinerama-dev libxrandr-dev libxrender-dev \
+            libgtk-3-dev libwebkit2gtk-4.1-dev \
+            libglu1-mesa-dev mesa-common-dev
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Package VST3 (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if (-not $tag) { $tag = "dev" }
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          $bundle = Get-ChildItem -Path build -Recurse -Directory -Filter '*.vst3' | Select-Object -First 1
+          if (-not $bundle) { throw "No .vst3 bundle found under build/" }
+          $zipName = "$($bundle.BaseName)-$tag-windows.zip"
+          Compress-Archive -Path $bundle.FullName -DestinationPath "artifacts/$zipName"
+          Get-ChildItem artifacts
+
+      - name: Package VST3 (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          tag="${GITHUB_REF_NAME:-dev}"
+          mkdir -p artifacts
+          bundle=$(find build -name '*.vst3' -type d -print -quit)
+          if [ -z "$bundle" ]; then
+            echo "No .vst3 bundle found under build/"
+            exit 1
+          fi
+          base=$(basename "$bundle" .vst3)
+          zip_name="${base}-${tag}-linux.zip"
+          (cd "$(dirname "$bundle")" && zip -r "$GITHUB_WORKSPACE/artifacts/$zip_name" "$(basename "$bundle")")
+          ls -lh artifacts/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vst3-${{ matrix.platform }}
+          path: artifacts/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Show release contents
+        run: ls -lh dist/
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          body: |
+            ## Install
+
+            1. Make sure your FFT disc is extracted via [`exmateria-extract`](https://github.com/timbermania/ExMateria-ISO-Patcher).
+            2. Download the `.zip` for your platform below.
+            3. Unzip and copy the `.vst3` bundle into your DAW's VST3 folder:
+               - **Windows (per-user):** `%LOCALAPPDATA%\Programs\Common\VST3\`
+               - **Linux:** `~/.vst3/`
+            4. Restart your DAW and rescan plugins.

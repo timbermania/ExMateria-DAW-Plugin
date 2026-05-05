@@ -1,0 +1,6 @@
+gm_program,primary_group,fallback_groups,forbidden_played_sample_ids,notes
+46,synth_str1,,93|94,Aerith harp rule: keep synth_str1 but reject harsh top pair and shift down uniformly
+49,synth_str,,89|90,Aerith strings rule: keep synth_str but reject highest pair
+51,synth_str,,89|90,Aerith strings rule: keep synth_str but reject highest pair
+60,french_horn,,64|75|76|77|78|79,Aerith horn rule: keep french_horn but reject blasting upper subset
+73,bassoon,clarinet,,"Curated flute fallback: prefer bassoon family over clarinet for high sustained material"

@@ -1,0 +1,5 @@
+    FFTMidiMappingRule {.gm_program = 46, .primary_group = "synth_str1", .fallback_groups = {}, .forbidden_played_sample_ids = { 93, 94 }, .notes = "Aerith harp rule" },
+    FFTMidiMappingRule {.gm_program = 49, .primary_group = "synth_str", .fallback_groups = {}, .forbidden_played_sample_ids = { 89, 90 }, .notes = "Aerith strings rule" },
+    FFTMidiMappingRule {.gm_program = 51, .primary_group = "synth_str", .fallback_groups = {}, .forbidden_played_sample_ids = { 89, 90 }, .notes = "Aerith strings rule" },
+    FFTMidiMappingRule {.gm_program = 60, .primary_group = "french_horn", .fallback_groups = {}, .forbidden_played_sample_ids = { 64, 75, 76, 77, 78, 79 }, .notes = "Aerith horn rule" },
+    FFTMidiMappingRule {.gm_program = 73, .primary_group = "bassoon", .fallback_groups = { "clarinet" }, .forbidden_played_sample_ids = {}, .notes = "Curated flute fallback" },

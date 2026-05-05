@@ -1,0 +1,41 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Source-only release: GitHub auto-attaches the source tarball + zip.
+# Consumers add this as a CMake subdirectory; no prebuilt binary needed.
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          body: |
+            ## Using it from CMake
+
+            Drop the source archive into your project, or pull it via
+            `FetchContent`:
+
+            ```cmake
+            include(FetchContent)
+            FetchContent_Declare(
+                exmateria_spu_core
+                GIT_REPOSITORY https://github.com/timbermania/ExMateria-SPU-Core.git
+                GIT_TAG        ${{ github.ref_name }}
+            )
+            FetchContent_MakeAvailable(exmateria_spu_core)
+            target_link_libraries(your_target PRIVATE exmateria::spu_core)
+            ```
