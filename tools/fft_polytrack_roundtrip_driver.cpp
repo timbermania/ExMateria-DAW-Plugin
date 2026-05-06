@@ -6,6 +6,7 @@
 #include <variant>
 #include <vector>
 
+#include "asset_paths.h"
 #include "fft_plugin/fft_smd_authoring_model.h"
 #include "fft_plugin/fft_smd_file.h"
 #include "fft_plugin/processor/track_grouping_helpers.h"
@@ -93,7 +94,7 @@ void print_opcode_list(const std::string& label, const std::vector<FFTSmdAuthore
 int main(int argc, char** argv) {
     const std::string smd_path = argc > 1
         ? argv[1]
-        : "C:\\Users\\acurr\\Documents\\GitHub\\fft-project\\project-assets\\fft-extract\\fft-extract\\SOUND\\MUSIC_31.SMD";
+        : fftplugin::asset_paths::default_smd();
     const int32_t track_index = argc > 2 ? std::stoi(argv[2]) : 1;
 
     std::string error_message;
