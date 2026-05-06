@@ -1168,8 +1168,42 @@ bool FFTPluginProcessorCore::set_track_tempo_opcode_value(
     int32_t tempo_value,
     std::string* error_message
 ) {
-    return set_track_generic_opcode_param_value(
-        track_idx, source_event_index, op_byte(FFTSmdOpcode::TEMPO), tempo_value, 1, 255, error_message);
+    if (!set_track_generic_opcode_param_value(
+            track_idx, source_event_index, op_byte(FFTSmdOpcode::TEMPO),
+            tempo_value, 1, 255, error_message)) {
+        return false;
+    }
+    // SMD header byte 0x1B = document.initial_tempo is what the engine
+    // reads as the starting tempo; TEMPO opcodes only fire when the
+    // sequencer's playhead reaches their tick. If the user edits the
+    // tempo opcode at tick 0 (or the earliest one in the conductor) and
+    // initial_tempo isn't kept in sync, playback starts at the old
+    // tempo and the user perceives no change.
+    if (state_.smd_authoring.has_value()) {
+        const auto* opcodes = authored_part_opcodes(&*state_.smd_authoring, track_idx);
+        if (opcodes != nullptr) {
+            int32_t earliest_tempo_tick = std::numeric_limits<int32_t>::max();
+            for (const auto& op : *opcodes) {
+                if (op.opcode.opcode == op_byte(FFTSmdOpcode::TEMPO)) {
+                    earliest_tempo_tick = std::min(earliest_tempo_tick, op.tick);
+                }
+            }
+            for (const auto& op : *opcodes) {
+                if (op.opcode.opcode == op_byte(FFTSmdOpcode::TEMPO) &&
+                    op.tick == earliest_tempo_tick &&
+                    !op.opcode.params.empty() &&
+                    op.opcode.params[0] == tempo_value &&
+                    state_.smd_authoring->initial_tempo != tempo_value) {
+                    state_.smd_authoring->initial_tempo = tempo_value;
+                    sync_legacy_raw_tracks_from_parts(*state_.smd_authoring);
+                    const auto compiled = compile_smd_authoring_document(*state_.smd_authoring);
+                    finalize_successful_authored_edit(compiled, error_message);
+                    break;
+                }
+            }
+        }
+    }
+    return true;
 }
 
 bool FFTPluginProcessorCore::set_track_time_signature_opcode_values(

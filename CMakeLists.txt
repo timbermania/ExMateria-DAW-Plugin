@@ -99,6 +99,7 @@ if(FFT_PLUGIN_BUILD_TEST_DRIVER)
         fft_smd_export_regression_driver
         fft_generate_synthetic_fixture
         fft_smd_byte_identity_driver
+        fft_tempo_edit_probe
     )
     foreach(_drv IN LISTS _fft_drivers)
         add_executable(${_drv} tools/${_drv}.cpp)
@@ -308,4 +309,20 @@ if(FFT_PLUGIN_BUILD_JUCE_VST3)
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/exmateria-spu-core
     )
     target_compile_features(fft_authoring_probe PRIVATE cxx_std_20)
+
+    add_executable(fft_midi_tempo_render_probe
+        tools/fft_midi_tempo_render_probe.cpp
+        src/juce/FFTMidiImport.cpp
+    )
+    target_link_libraries(fft_midi_tempo_render_probe
+        PRIVATE
+            fft_plugin_core
+            juce::juce_audio_utils
+    )
+    target_include_directories(fft_midi_tempo_render_probe PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/juce
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/exmateria-spu-core
+    )
+    target_compile_features(fft_midi_tempo_render_probe PRIVATE cxx_std_20)
 endif()

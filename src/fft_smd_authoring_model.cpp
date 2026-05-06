@@ -387,8 +387,19 @@ void compile_indexed_track_to_compiled_lane(
         if (span.relative_key >= 0 && span.relative_key < 12 && span.base_ticks < span.total_ticks) {
             breakpoints.push_back(span.start_tick + span.base_ticks);
         }
+        // Tick-critical opcodes (TEMPO, TEMPO_SLIDE, TIME_SIGNATURE) must
+        // fire at their authored tick — they affect global timing or bar
+        // structure, not just whatever instrument owns the current span.
+        // Without this, on the conductor (one rest span covering the whole
+        // song) every tempo opcode would queue to span_end below.
+        const auto opcode_is_tick_critical = [](int32_t op) {
+            return op == op_byte(FFTSmdOpcode::TEMPO)
+                || op == op_byte(FFTSmdOpcode::TEMPO_SLIDE)
+                || op == op_byte(FFTSmdOpcode::TIME_SIGNATURE);
+        };
         for (const auto& indexed_opcode : opcodes) {
-            if (!indexed_opcode.opcode.exact_timing) {
+            const bool tick_critical = opcode_is_tick_critical(indexed_opcode.opcode.opcode.opcode);
+            if (!indexed_opcode.opcode.exact_timing && !tick_critical) {
                 continue;
             }
             if (indexed_opcode.opcode.tick > span_start && indexed_opcode.opcode.tick < span_end) {
@@ -418,12 +429,15 @@ void compile_indexed_track_to_compiled_lane(
                 smd_track_event_key(compiled_track_index, span_source_index);
         }
 
-        // Authored opcode ticks are a display/order proxy. Only exact_timing keeps an
-        // opcode on an internal breakpoint; otherwise it queues to the next real boundary.
+        // Authored opcode ticks are a display/order proxy. Only exact_timing
+        // (or tick-critical opcode kinds, which we promote to exact_timing
+        // above) keeps an opcode on an internal breakpoint; everything else
+        // queues to the next real boundary.
         while (opcode_index < opcodes.size() &&
                opcodes[opcode_index].opcode.tick > span_start &&
                opcodes[opcode_index].opcode.tick < span_end &&
-               !opcodes[opcode_index].opcode.exact_timing) {
+               !opcodes[opcode_index].opcode.exact_timing &&
+               !opcode_is_tick_critical(opcodes[opcode_index].opcode.opcode.opcode)) {
             emit_opcode(opcodes[opcode_index]);
             opcode_index += 1;
         }

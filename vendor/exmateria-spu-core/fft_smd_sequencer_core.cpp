@@ -427,8 +427,8 @@ void FFTSmdSequencerCore::advance_track(TrackState &track_state) {
 		}
 
 		const FFTSmdOpcodeEvent &opcode_event = std::get<FFTSmdOpcodeEvent>(event);
-		track_state.event_idx += 1;
 		if (opcode_event.opcode == 0x80 || opcode_event.opcode == 0x81) {
+			track_state.event_idx += 1;
 			emit_opcode_trace(
 				trace_callback_,
 				total_ticks_ + accumulated,
@@ -441,6 +441,16 @@ void FFTSmdSequencerCore::advance_track(TrackState &track_state) {
 				opcode_event);
 			accumulated += !opcode_event.params.empty() ? opcode_event.params[0] : 0;
 		} else {
+			// If we've accumulated rest time before this opcode, defer the
+			// opcode until that time has actually elapsed. Without this,
+			// note-less tracks (notably the conductor on MIDI imports)
+			// would flush every TEMPO/TIME_SIG/etc. opcode on tick 0,
+			// because nothing else triggers a wait_ticks return.
+			if (accumulated > 0) {
+				track_state.wait_ticks = accumulated;
+				return;
+			}
+			track_state.event_idx += 1;
 			process_opcode(
 				track_state,
 				opcode_event,
